@@ -21,10 +21,9 @@ gesture_window_samples = 100
 STREAM_BUFFER_SIZE = 1000  # ~5 seconds at SAMPLINGHZ
 CALIBRATION_BUFFER_SIZE = 600  # ~3 seconds at SAMPLINGHZ
 
-CALIBRATION_DURATION = 3  
+CALIBRATION_DURATION = 5  
 CLASSIFICATION_DURATION = 3 
 
-CALIBRATION_STARTS = 5 
 CLASSIFICATION_STARTS = 5 
 
 def data_acquisition_process(stream_mem_name, calib_mem_name, stream_index, 
@@ -101,7 +100,6 @@ def get_recent_data_from_shared_mem(stream_buffer, stream_index, window_seconds=
             part1 = stream_buffer[start_idx_wrapped:]  # From start to end of buffer
             part2 = stream_buffer[:current_idx_wrapped]  # From beginning to current
             return np.concatenate([part1, part2])
-
 
 def Calibrate(gesture_name, stream_buffer, stream_index, calib_buffer, calib_index, 
               recording_flag, recording_gesture,user_folder, system=None,stop_flag=None):
@@ -236,16 +234,11 @@ def Calibrate(gesture_name, stream_buffer, stream_index, calib_buffer, calib_ind
         
         last_processed_idx = current_idx
 
-def GeneralCalibrate(gesture_name, calib_buffer, calib_index, recording_flag, recording_gesture):
+def GeneralCalibrate(gesture_name, calib_buffer, calib_index, recording_flag, recording_gesture, subfolder):
     """Called from main process when user wants to calibrate"""
-    print(f"Calibration will start in ", end='', flush=True)
-    for i in range(CALIBRATION_STARTS, 0, -1):
-        print(f"{i}... ", end='', flush=True)
-        time.sleep(1)
-    print("\n")
+    main_folder="Rawdata"
+
     print(f"Recording calibration for '{gesture_name}' - '{CALIBRATION_DURATION} seconds...")
-    
-    #şimdilik veri toplayacağumuz için burası kapalı.
     # Reset calibration buffer
     calib_index.value = 0
     
@@ -255,7 +248,7 @@ def GeneralCalibrate(gesture_name, calib_buffer, calib_index, recording_flag, re
         recording_gesture[i] = byte
     recording_flag.value = 1  # Start recording
     
-    # Wait 3 seconds
+    # Wait CALIBRATION_DURATION seconds
     print("Recording... ", end='', flush=True)
     for i in range(CALIBRATION_DURATION):
         time.sleep(1)
@@ -277,10 +270,11 @@ def GeneralCalibrate(gesture_name, calib_buffer, calib_index, recording_flag, re
     
     # Save to disk
     import os
-    os.makedirs('user', exist_ok=True)
     timestamp = int(time.time())
-    np.save(f'user/{gesture_name}_{timestamp}.npy', recorded_data)
-    
+    folder_path = os.path.join('Rawdata', subfolder)
+    os.makedirs(folder_path, exist_ok=True)
+    np.save(os.path.join(folder_path, f'{gesture_name}_{timestamp}.npy'),recorded_data)
+
     print(f"Calibration complete! Saved {len(recorded_data)} samples")
 
 def Classify(stream_mem_name, stream_index, is_running_flag,Pis_running_flag, result_queue, STREAM_BUFFER_SIZE, samplingrate):
@@ -545,15 +539,31 @@ def Command(stream_buffer, stream_index, calib_buffer, calib_index,
                 success = Calibrate(gesture_name, stream_buffer, stream_index, calib_buffer, calib_index, recording_flag, recording_gesture,system.current_user_folder)
                 if success:
                     print("\n Tip: Run 'tr' to retrain the personal model with new data")
-        case "gcb":  #calibrate #general calibration
+        case "gcb":
             if not system.is_data_acquisition_running():
                 print("ERROR: Data acquisition not running. Use 'connect' first.")
             else:
-                gesture_name = input("Which gesture would you like to calibrate? ")
-                success = GeneralCalibrate(gesture_name, calib_buffer, calib_index, recording_flag, recording_gesture)
-                if success:
-                    print("\n Tip: Run 'tr' to retrain the personal model with new data")
-       
+                answer = input("Write the subfolder and gesture name (space separated): ")
+                parts = answer.split()
+                if len(parts) != 2:
+                    print("ERROR: Expected 'subfolder gesturename'")
+                else:
+                    subfolder, gesture_name = parts
+                    print("Press 'r' to record a sample, 'x' to exit.")
+                    while True:
+                        key = input("> ").strip().lower()
+                        if key == 'x':
+                            print("Exiting general calibration.")
+                            break
+                        elif key == 'r':
+                            success = GeneralCalibrate(gesture_name, calib_buffer, calib_index, 
+                                                        recording_flag, recording_gesture, subfolder)
+                            if success:
+                                print("Sample saved. Press 'r' for another, 'x' to exit.")
+                            else:
+                                print("recording failed try again.")
+                        else:
+                            print("Unknown key. Press 'r' to record or 'x' to exit.")
         case "startcf":
             if not system.is_data_acquisition_running():
                 print("ERROR: Data acquisition not running. Use 'connect' first.")

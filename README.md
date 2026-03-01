@@ -1,23 +1,5 @@
 # ToDo
-  Code Implementation
- * Calibration_duration = 5 seconds
- * Disable countdown in calibration
- * check calibration buffer for size and if its getting data from true source in a true way.
- * Delete old SEM datas and folders and plots
- * Folders:
-   * Rawdata: P1, P2, P3, P4
-   * Rawdataplots: P1, P2, P3, P4
-   * Prodata (Processed data): P1, P2, P3, P4
-   * Prodataplot (processed data plots): P1, P2, P3
- * Data handler fix:
-   * Datas will be written to shared memory when sEMG comes
-   * sEMG data will be written taking mean average of them (assuming emg sends 100hz for both values) -> or find another way.
- * check expected hz in the program and data handler
- * new calibration method:
-    *user will write cb and after instead of asking name the program will ask enter the values:
-    user answer contains "folderResponsiveDirectory gesturename" they are seperated from space chrachters -> set folder and gesture name. Then 
-    * when r pressed start recording.
-    * when x pressed escape calibration loop
+
 
 DO NOT FORGET THE RULES
 
